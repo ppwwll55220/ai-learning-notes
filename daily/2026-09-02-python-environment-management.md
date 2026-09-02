@@ -1,46 +1,59 @@
-阶段 0 第 06 课：Python 环境管理 — 学习笔记
-日期：2026-09-02
-核心工具：uv、pyproject.toml、lockfile、虚拟环境
-关键词：依赖隔离、可复现构建、PEP 668、externally-managed-environment
+# 阶段 0 第 06 课：Python 环境管理 — 学习笔记
 
-本课核心目标
-理解为什么 AI 项目需要虚拟环境（依赖地狱）。
+**日期**：2026-09-02  
+**核心工具**：uv、pyproject.toml、lockfile、虚拟环境  
+**关键词**：依赖隔离、可复现构建、PEP 668、externally-managed-environment
 
-掌握用 uv 创建、激活、管理虚拟环境的标准流程。
+---
 
-理解 pyproject.toml 和 lockfile 的作用和区别。
+## 本课核心目标
 
-能够诊断常见的环境问题（全局安装、CUDA 不匹配、混用工具等）。
+- 理解为什么 AI 项目需要虚拟环境（依赖地狱）。
+- 掌握用 uv 创建、激活、管理虚拟环境的标准流程。
+- 理解 pyproject.toml 和 lockfile 的作用和区别。
+- 能够诊断常见的环境问题（全局安装、CUDA 不匹配、混用工具等）。
+- 知道课程推荐的按 Phase 划分环境策略。
 
-知道课程推荐的按 Phase 划分环境策略。
+---
 
-核心概念：虚拟环境到底隔离了什么？
+## 核心概念：虚拟环境到底隔离了什么？
+
 虚拟环境不是对整个 Linux 系统生效的，它只对当前激活的终端会话生效。
 
-两个容易混淆的概念：
+### 两个容易混淆的概念
 
-概念	说明	作用范围
-系统全局 Python	Ubuntu 自带的 /usr/bin/python3	所有用户、所有终端
-虚拟环境（如 ~/.venv）	手动创建的独立 Python 副本	仅限当前激活的终端
-为什么虚拟环境能解决依赖地狱？
+| 概念 | 说明 | 作用范围 |
+| :--- | :--- | :--- |
+| 系统全局 Python | Ubuntu 自带的 /usr/bin/python3 | 所有用户、所有终端 |
+| 虚拟环境（如 ~/.venv） | 手动创建的独立 Python 副本 | 仅限当前激活的终端 |
+
+### 为什么虚拟环境能解决依赖地狱？
 
 AI 项目常常依赖特定版本的 PyTorch、NumPy、Transformers 等。不同项目需要的版本可能冲突（比如项目 A 要 PyTorch 2.4，项目 B 要 PyTorch 2.1）。虚拟环境为每个项目提供独立的工具箱，互不干扰。
 
-工具选择：为什么全用 uv？
-操作	推荐命令	避免
-创建虚拟环境	uv venv	python -m venv
-安装包	uv pip install	pip install
-添加依赖	uv add numpy（自动更新 pyproject.toml 和 lockfile）	手动编辑 pyproject.toml
-锁定版本	uv lock	pip freeze > requirements.txt
-同步环境	uv sync	pip install -r requirements.txt
-核心原则：全用 uv，全用虚拟环境，永不全局安装。
+---
 
-项目声明文件：pyproject.toml
+## 工具选择：为什么全用 uv？
+
+| 操作 | 推荐命令 | 避免 |
+| :--- | :--- | :--- |
+| 创建虚拟环境 | `uv venv` | `python -m venv` |
+| 安装包 | `uv pip install` | `pip install` |
+| 添加依赖 | `uv add numpy`（自动更新 pyproject.toml 和 lockfile） | 手动编辑 pyproject.toml |
+| 锁定版本 | `uv lock` | `pip freeze > requirements.txt` |
+| 同步环境 | `uv sync` | `pip install -r requirements.txt` |
+
+**核心原则**：全用 uv，全用虚拟环境，永不全局安装。
+
+---
+
+## 项目声明文件：pyproject.toml
+
 每个 Python 项目都应该有一个 pyproject.toml。它用一个文件取代 setup.py、setup.cfg 和 requirements.txt。
 
-基础结构：
+### 基础结构
 
-toml
+```toml
 [project]
 name = "ai-engineering-from-scratch"
 version = "0.1.0"
@@ -55,8 +68,7 @@ dependencies = [
 [project.optional-dependencies]
 torch = ["torch>=2.3", "torchvision>=0.18"]
 llm = ["anthropic>=0.39", "openai>=1.50"]
-安装指定依赖组：
-
+安装指定依赖组
 bash
 uv pip install -e ".[torch]"        # 基础 + PyTorch
 uv pip install -e ".[llm]"          # 基础 + LLM SDK
@@ -67,6 +79,7 @@ Lockfile（锁文件）：保证可复现性
 pyproject.toml 写的是宽松的版本范围（如 numpy>=1.26）。Lockfile（如 uv.lock）则把每个包（包括传递依赖）固定到精确版本和哈希值。
 
 提交到 git：pyproject.toml 和 uv.lock 都应提交。
+
 不提交到 git：.venv/（虚拟环境文件夹）不应提交，因为它巨大且跨机器不可复用。
 
 练习1：运行 env_setup.sh
@@ -77,7 +90,7 @@ pyproject.toml 写的是宽松的版本范围（如 numpy>=1.26）。Lockfile（
 bash
 cd ~/ai-engineering-from-scratch/phases/00-setup-and-tooling/06-python-environments/code/
 bash env_setup.sh
-原理：脚本检查 uv 是否存在、Python 版本是否大于等于 3.11，然后在课程仓库根目录创建 .venv，安装核心包，最后验证导入是否成功。
+原理：脚本检查 uv 是否存在、Python 版本是否 >= 3.11，然后在课程仓库根目录创建 .venv，安装核心包，最后验证导入是否成功。
 
 遇到问题：
 
@@ -192,3 +205,4 @@ cd ~/ai-learning-notes
 git add daily/python-environment-management.md
 git commit -m "docs: 添加 Python 环境管理课程笔记"
 git push
+本笔记基于阶段 0 第 06 课：Python 环境管理的学习内容整理，包含学习过程中的提问、错误排查和核心知识点总结。
